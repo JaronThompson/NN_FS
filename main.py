@@ -6,11 +6,11 @@ from scipy.stats import randint as sp_randint
 from scipy.stats import uniform as sp_uniform
 from scipy.stats import norm as sp_norm
 from sklearn.model_selection import RandomizedSearchCV
-from dataManager import regression_plot
 # import NN
-import network3
-from network3 import Network
-from network3 import FullyConnectedLayer
+import importlib
+import network
+importlib.reload(network)
+from network import Network
 
 #%%
 
@@ -39,6 +39,13 @@ def generate_data(t, f, Nfeatures, Nsamples):
 
     return X, Y
 
+def regression_plot(Y_train, Y_pred_train, Y_test, Y_pred_test):
+    plt.subplot(1, 2, 1)
+    plt.scatter(Y_train, Y_pred_train)
+    plt.subplot(1, 2, 2)
+    plt.scatter(Y_test, Y_pred_test)
+    plt.show()
+
 NF = 5
 X_train, Y_train = generate_data(t, f, NF, 150)
 X_test, Y_test = generate_data(t, f, NF, 50)
@@ -46,40 +53,20 @@ X_test, Y_test = generate_data(t, f, NF, 50)
 # now that we have training and testing data, we can train and test the NN
 net = Network(NF)
 
-# optimize hyper-parameters
-'''
-param_dist = {'nodes': sp_randint(10, 50),
-              'eta': sp_norm(.035, .005),
-              'lmbda': sp_norm(0, 1),
-              'patience': sp_norm(15, 5)}
-
-net.set_params(verbose=False)
-random_search = RandomizedSearchCV(net,
-    scoring='neg_mean_squared_error',
-    param_distributions = param_dist, cv=5, iid=False)
-random_search.fit(X_train, Y_train)
-params = random_search.best_params_
-net = Network(NF,
-    nodes = params['nodes'],
-    eta = params['eta'],
-    lmbda = params['lmbda'],
-    patience = params['patience'])
-print(params)
-'''
-
 # fit the NN model to the training data and make predictions
-net.fit(X_train, Y_train)
+train_cost, eval_cost = net.fit(X_train, Y_train)
 Y_pred_train = net.predict(X_train)
 Y_pred_test = net.predict(X_test)
 
-#%% plot prediction results
+# plot prediction results
 regression_plot(Y_train, Y_pred_train, Y_test, Y_pred_test)
 
 # calculate feature importance based on training data
-feature_importance = net.getFeatureImportance(X_train, Y_train)
+feature_importance = net.feature_importance(X_train, Y_train)
 print(feature_importance)
 
 #%% to get a better feature importance estimate, I recommend bootstrapping the data
+''''
 bootstrap_iterations = 25
 p_bootstrap = .75
 feature_importances = np.zeros([bootstrap_iterations, NF])
@@ -90,12 +77,12 @@ for i in range(bootstrap_iterations):
     X_train_sample = X_train[rand_inds, :][:int(p_bootstrap*len(Y_train)), :]
     Y_train_sample = Y_train[rand_inds][:int(p_bootstrap*len(Y_train))]
     # fit RF model to bootstrap sample of training data
-    net.fit(X_train_sample, Y_train_sample)
-    feature_importances[i, :] = net.getFeatureImportance(X_train_sample, Y_train_sample)
+    _, _, fs = net.fit(X_train_sample, Y_train_sample)
+    feature_importances[i, :] = fs
 
 feature_importance = np.mean(feature_importances, 0)
 print(feature_importance)
-
+'''
 #%% plot feature selection results
 true_feature_importances = np.array([1, 3, 0, -5, 0]) / 5
 
@@ -116,3 +103,4 @@ ax.legend((rects1[0], rects2[0]), ('True', 'NN'))
 
 plt.tight_layout()
 plt.show()
+#%%
